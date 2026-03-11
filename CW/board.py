@@ -6,7 +6,6 @@ checkerPieces = {
     ".": "·"    # empty square
     }
 
-board_size = 8
 
 def render_cell(cell): 
     '''
@@ -20,13 +19,15 @@ class Board:
     Represents the game board and contains methods for initializing the board, printing it, 
     and calculating valid moves and captures for pieces.
     '''
-    def __init__(self):
+    def __init__(self, board_size, forced_capture):
         '''
         Initializes the board as an 8x8 grid filled with "." to represent empty squares, 
         and then sets up the pieces in their starting positions using the setup_pieces method.
         @return: None
         '''
         self.board = []
+        self.board_size = board_size
+        self.forced_capture = forced_capture
 
         for row in range(board_size):
             new_row = []
@@ -54,17 +55,17 @@ class Board:
     #         print()
     def print_board(self):
         print("    ", end="")
-        for col in range(board_size):
+        for col in range(self.board_size):
             print(f"{col+1:^4}", end="")
         print()
 
-        border = "   +" + "---+" * board_size
+        border = "   +" + "---+" * self.board_size
         print(border)
 
-        for row in range(board_size):
+        for row in range(self.board_size):
             print(f"{row+1:<2} |", end="")
 
-            for col in range(board_size):
+            for col in range(self.board_size):
                 cell = self.board[row][col]
                 print(f" {render_cell(cell)} |", end="")
 
@@ -77,8 +78,8 @@ class Board:
         and the bottom three rows are filled with "b" (player pieces), placed on alternating squares.
         @return: None
         '''
-        for row in range(board_size):
-            for col in range(board_size):
+        for row in range(self.board_size):
+            for col in range(self.board_size):
                 if (row + col) % 2 == 1:
                     if row < 3:
                         self.board[row][col] = "c"
@@ -107,19 +108,19 @@ class Board:
                 for dr, dc in player_moves:
                     r = row + dr
                     c = col + dc
-                    if 0 <= r < board_size and 0 <= c < board_size and self.board[r][c] == ".":
+                    if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == ".":
                         moves.append((r,c))
             elif square == "c":
                 for dr, dc in ai_moves:
                     r = row + dr
                     c = col + dc
-                    if 0 <= r < board_size and 0 <= c < board_size and self.board[r][c] == ".":
+                    if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == ".":
                         moves.append((r,c))
             elif square == "B" or square == "C":
                 for dr, dc in player_moves + ai_moves:
                     r = row + dr
                     c = col + dc
-                    if 0 <= r < board_size and 0 <= c < board_size and self.board[r][c] == ".":
+                    if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == ".":
                         moves.append((r,c))
         return moves
     
@@ -163,10 +164,10 @@ class Board:
             landing_col = col + 2 * dc
 
             if (
-                0 <= enemy_row < board_size
-                and 0 <= enemy_col < board_size
-                and 0 <= landing_row < board_size
-                and 0 <= landing_col < board_size
+                0 <= enemy_row < self.board_size
+                and 0 <= enemy_col < self.board_size
+                and 0 <= landing_row < self.board_size
+                and 0 <= landing_col < self.board_size
             ):
                 
                 if (
@@ -177,14 +178,14 @@ class Board:
         return captures
                 
     def get_available_moves(self, row, col):
-        '''
-        Returns valid moves for a specific piece.
-        If piece cannot capture, it only returns regular diagonal moves
-        @param row: The row index of the piece for which to calculate available moves
-        @param col: The column index of the piece for which to calculate available moves
-        @return: A list of valid move positions (row, col) for the specified piece, including 
-        both regular moves and captures
-        '''
+        """
+        Returns a list of available moves for the piece at the specified row and
+        col. Prioritizes capture moves if any are possible; otherwise, returns
+        standard moves.
+        @param row: The row index of the piece for which to get available moves
+        @param col: The column index of the piece for which to get available moves
+        @return: A list of available move positions (row, col) for the specified piece
+        """
         captures = self.captures(row, col)
         if captures:
             return captures
@@ -193,46 +194,98 @@ class Board:
 
     def make_move(self, start_row, start_col, end_row, end_col):
         """
-        Moves a piece from (start_row, start_col) to (end_row, end_col) on the
-        board, handles captures and promotion, and returns True if the move is
-        valid, False otherwise.
-        @param start_row: The row index of the piece to move
-        @param start_col: The column index of the piece to move
-        @param end_row: The row index of the destination square
-        @param end_col: The column index of the destination square
-        @return: True if the move was successfully made, False if the move was invalid
+        Handles moving a piece on the board from (start_row, start_col) to
+        (end_row, end_col), validating the move, updating the board, processing
+        captures, and promoting pieces when applicable. Returns True if the move
+        is successful, otherwise False.
+        @param start_row: The starting row index of the piece to move
+        @param start_col: The starting column index of the piece to move
+        @param end_row: The destination row index for the piece to move
+        @param end_col: The destination column index for the piece to move
+        @return: True if the move was successful, False if the move was invalid
         """
         piece = self.board[start_row][start_col]
-        legal_moves = self.get_available_moves(start_row, start_col)
+
+        if piece == ".":
+            return False
+
+        all_moves = self.get_all_moves(piece.lower())
+
+        if (start_row, start_col) not in all_moves:
+            print("That piece cannot be moved right now.")
+            return False
+
+        legal_moves = all_moves[(start_row, start_col)]
+
         if (end_row, end_col) not in legal_moves:
             print("Invalid move. Please choose a valid move for the selected piece.")
             return False
-        if piece == ".":
-            return False
-        else:
-            self.board[end_row][end_col] = piece
-            self.board[start_row][start_col] = "."
-            if abs(end_row - start_row) == 2 and abs(end_col - start_col) == 2:
-                captured_row = (start_row + end_row) // 2
-                captured_col = (start_col + end_col) // 2
-                self.board[captured_row][captured_col] = "."
-            if piece == "b" and end_row == 0:
-                self.board[end_row][end_col] = "B"
-            elif piece == "c" and end_row == board_size - 1:
-                self.board[end_row][end_col] = "C"
-            return True
+
+        self.board[end_row][end_col] = piece
+        self.board[start_row][start_col] = "."
+
+        if abs(end_row - start_row) == 2 and abs(end_col - start_col) == 2:
+            captured_row = (start_row + end_row) // 2
+            captured_col = (start_col + end_col) // 2
+            self.board[captured_row][captured_col] = "."
+
+        if piece == "b" and end_row == 0:
+            self.board[end_row][end_col] = "B"
+        elif piece == "c" and end_row == self.board_size - 1:
+            self.board[end_row][end_col] = "C"
+
+        return True
+    
     def check_winner(self):
         '''
-        Checks for a winner by counting the remaining pieces for both the player and the AI.
-        If one side has no pieces left, the other side is declared the winner.
-        @return: A string indicating the winner ("Player wins!" or "AI wins!") or None if there is no winner yet
+        Checks for a winner by counting the remaining pieces for both the player and the AI, 
+        and also checking if either player has no valid moves left. If one player has no pieces or no valid moves, 
+        the other player is declared the winner.
+        @return: A string indicating the winner ("b" or "c") or None if there is no winner yet
         '''
         player_pieces = sum(row.count("b") + row.count("B") for row in self.board)
         ai_pieces = sum(row.count("c") + row.count("C") for row in self.board)
 
         if player_pieces == 0:
-            return "AI wins!"
+            return "c"
         elif ai_pieces == 0:
-            return "Player wins!"
+            return "b"
+        elif not self.get_all_moves("b"):
+            return "c"
+        elif not self.get_all_moves("c"):
+            return "b"
         else:
             return None
+
+    def get_all_moves(self, player):
+        all_moves = {}
+        capture_moves = {}
+
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                square = self.board[row][col]
+
+                if square != "." and square.lower() == player:
+                    piece_moves = self.get_moves(row, col)
+                    piece_captures = self.captures(row, col)
+
+                    moves = piece_moves + piece_captures
+                    if moves:
+                        all_moves[(row, col)] = moves
+
+                    if piece_captures:
+                        capture_moves[(row, col)] = piece_captures
+
+        if self.forced_capture and capture_moves:
+            return capture_moves
+
+        return all_moves
+    
+    def has_capture(self, player):
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                square = self.board[row][col]
+                if square != "." and square.lower() == player:
+                    if self.captures(row, col):
+                        return True
+        return False
