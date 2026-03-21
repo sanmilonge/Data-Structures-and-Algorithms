@@ -26,7 +26,7 @@ class Board:
         @return: None
         '''
         self.board = []
-        self.board_size = board_size
+        self.board_size = board_size # User can increase board size to increase difficulty
         self.forced_capture = forced_capture
 
         for row in range(board_size):
@@ -37,23 +37,9 @@ class Board:
 
         self.setup_pieces()
 
-    # def print_board(self):
-    #     '''
-    #     Prints the current state of the board to the console in a human-readable format.
-    #     @return: None
-    #     '''
-    #     print("  ", end="  ")
-    #     for col in range(board_size):
-    #         print(col + 1, end="  ")
-    #     print()
 
-    #     for row in range(board_size):
-    #         print(row + 1, end="   ")
-    #         for col in range(board_size): 
-    #             cell = self.board[row][col]
-    #             print(render_cell(cell), end="  ")
-    #         print()
     def print_board(self):
+        
         print("    ", end="")
         for col in range(self.board_size):
             print(f"{col+1:^4}", end="")
