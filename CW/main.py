@@ -1,7 +1,12 @@
 import curses
 from board import Board
-from curses_ui import run_curses_game
+from curses_ui import run_curses_game, prompt_name
 from menu import menu
+
+
+def ask_name(stdscr, prompt, default):
+    name = prompt_name(stdscr, prompt)
+    return name if name else default
 
 
 def main(stdscr):
@@ -12,6 +17,10 @@ def main(stdscr):
         return
 
     if choice == "Player vs Player":
+
+        # Ask for names
+        p1_name = ask_name(stdscr, "Enter Player 1 name (press Enter to confirm):", "Player 1")
+        p2_name = ask_name(stdscr, "Enter Player 2 name (press Enter to confirm):", "Player 2")
 
         stdscr.clear()
         stdscr.addstr(5, 5, "Board Size")
@@ -43,9 +52,12 @@ def main(stdscr):
 
         game = Board(size, forced_capture)
 
-        run_curses_game(stdscr, game, False, timer=timer)
+        run_curses_game(stdscr, game, False, timer=timer, p1_name=p1_name, p2_name=p2_name)
 
     elif choice == "Player vs AI":
+
+        # Ask for player name
+        p1_name = ask_name(stdscr, "Enter your name (press Enter to confirm):", "Player")
 
         stdscr.clear()
         stdscr.addstr(5, 5, "Difficulty")
@@ -61,9 +73,23 @@ def main(stdscr):
         elif key == ord("3"):
             depth = 4
 
-        game = Board(8, forced_capture)
+        stdscr.clear()
+        stdscr.addstr(5, 5, "Board Size")
+        stdscr.addstr(7, 5, "1) 8x8")
+        stdscr.addstr(8, 5, "2) 10x10")
+        stdscr.addstr(9, 5, "3) 12x12")
 
-        run_curses_game(stdscr, game, True, depth)
+        key = stdscr.getch()
+
+        size = 8
+        if key == ord("2"):
+            size = 10
+        elif key == ord("3"):
+            size = 12
+
+        game = Board(size, forced_capture)
+
+        run_curses_game(stdscr, game, True, depth, p1_name=p1_name, p2_name="AI")
 
 
 curses.wrapper(main)

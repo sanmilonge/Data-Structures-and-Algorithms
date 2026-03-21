@@ -20,13 +20,8 @@ class Board:
     and calculating valid moves and captures for pieces.
     '''
     def __init__(self, board_size, forced_capture):
-        '''
-        Initializes the board as an 8x8 grid filled with "." to represent empty squares, 
-        and then sets up the pieces in their starting positions using the setup_pieces method.
-        @return: None
-        '''
         self.board = []
-        self.board_size = board_size # User can increase board size to increase difficulty
+        self.board_size = board_size
         self.forced_capture = forced_capture
 
         for row in range(board_size):
@@ -59,30 +54,18 @@ class Board:
             print(border)
 
     def setup_pieces(self):
-        '''
-        Initializes the board with pieces in their starting positions. The top three rows are filled with "c" (AI pieces) 
-        and the bottom three rows are filled with "b" (player pieces), placed on alternating squares.
-        @return: None
-        '''
+        rows_of_pieces = (self.board_size // 2) - 1  # e.g. 3 for 8x8, 4 for 10x10, 5 for 12x12
+
         for row in range(self.board_size):
             for col in range(self.board_size):
                 if (row + col) % 2 == 1:
-                    if row < 3:
+                    if row < rows_of_pieces:
                         self.board[row][col] = "c"
-                    elif row > 4:
+                    elif row >= self.board_size - rows_of_pieces:
                         self.board[row][col] = "b"
 
 
     def get_moves(self, row, col):
-        '''
-        Calculates the valid moves for a piece located at the specified row and column. 
-        The valid moves depend on the type of piece (regular or king) and its color (player or AI). 
-        Regular pieces can only move forward diagonally, while kings can move in both directions. 
-        The method checks for empty squares in the appropriate directions to determine valid moves.
-        @param row: The row index of the piece for which to calculate moves
-        @param col: The column index of the piece for which to calculate moves
-        @return: A list of valid move positions (row, col) for the specified piece
-        '''
         player_moves = [(-1,-1), (-1,1,)]
         ai_moves = [(1,1), (1,-1)]
         square = self.board[row][col]
@@ -111,15 +94,6 @@ class Board:
         return moves
     
     def captures(self, row, col):
-        '''
-        Determines the valid capture moves for a piece located at the specified row and column. 
-        A capture move involves jumping over an opponent's piece to an empty square directly beyond it. 
-        The method checks for opponent pieces in the appropriate directions and ensures that the landing square 
-        is empty to determine valid captures.
-        @param row: The row index of the piece for which to calculate captures
-        @param col: The column index of the piece for which to calculate captures
-        @return: A list of valid capture move positions (row, col) for the specified piece
-        '''
         player_moves = [(-1,-1), (-1,1,)]
         ai_moves = [(1,1), (1,-1)]
         square = self.board[row][col]
@@ -164,14 +138,6 @@ class Board:
         return captures
                 
     def get_available_moves(self, row, col):
-        """
-        Returns a list of available moves for the piece at the specified row and
-        col. Prioritizes capture moves if any are possible; otherwise, returns
-        standard moves.
-        @param row: The row index of the piece for which to get available moves
-        @param col: The column index of the piece for which to get available moves
-        @return: A list of available move positions (row, col) for the specified piece
-        """
         captures = self.captures(row, col)
         if captures:
             return captures
@@ -180,15 +146,9 @@ class Board:
 
     def make_move(self, start_row, start_col, end_row, end_col):
         """
-        Handles moving a piece on the board from (start_row, start_col) to
-        (end_row, end_col), validating the move, updating the board, processing
-        captures, and promoting pieces when applicable. Returns True if the move
-        is successful, otherwise False.
-        @param start_row: The starting row index of the piece to move
-        @param start_col: The starting column index of the piece to move
-        @param end_row: The destination row index for the piece to move
-        @param end_col: The destination column index for the piece to move
-        @return: True if the move was successful, False if the move was invalid
+        Executes a single move or single capture hop on the board.
+        Does NOT enforce turn order or multi-jump chaining — callers handle that.
+        Returns True if successful, False if invalid.
         """
         piece = self.board[start_row][start_col]
 
@@ -198,37 +158,125 @@ class Board:
         all_moves = self.get_all_moves(piece.lower())
 
         if (start_row, start_col) not in all_moves:
-            print("That piece cannot be moved right now.")
             return False
 
         legal_moves = all_moves[(start_row, start_col)]
 
         if (end_row, end_col) not in legal_moves:
-            print("Invalid move. Please choose a valid move for the selected piece.")
             return False
 
         self.board[end_row][end_col] = piece
         self.board[start_row][start_col] = "."
 
+        # Remove captured piece if this was a jump
         if abs(end_row - start_row) == 2 and abs(end_col - start_col) == 2:
             captured_row = (start_row + end_row) // 2
             captured_col = (start_col + end_col) // 2
             self.board[captured_row][captured_col] = "."
 
+        # Promotion — but don't promote mid-chain (piece keeps jumping as king from here)
         if piece == "b" and end_row == 0:
             self.board[end_row][end_col] = "B"
         elif piece == "c" and end_row == self.board_size - 1:
             self.board[end_row][end_col] = "C"
 
         return True
-    
+
+    def make_move_no_validate(self, start_row, start_col, end_row, end_col):
+        """
+        Executes a single hop without full move validation.
+        Used internally by get_all_jump_chains to simulate chains efficiently.
+        Assumes the move is already known to be a valid capture hop.
+        Returns the captured piece's position.
+        """
+        piece = self.board[start_row][start_col]
+        self.board[end_row][end_col] = piece
+        self.board[start_row][start_col] = "."
+
+        captured_row = (start_row + end_row) // 2
+        captured_col = (start_col + end_col) // 2
+        captured_piece = self.board[captured_row][captured_col]
+        self.board[captured_row][captured_col] = "."
+
+        # Promotion
+        if piece == "b" and end_row == 0:
+            self.board[end_row][end_col] = "B"
+        elif piece == "c" and end_row == self.board_size - 1:
+            self.board[end_row][end_col] = "C"
+
+        return captured_row, captured_col, captured_piece
+
+    def get_jump_chains(self, row, col, chain_so_far=None, captured_so_far=None):
+        """
+        Recursively finds all complete capture chains starting from (row, col).
+        Returns a list of chains, where each chain is a list of (row, col) positions
+        starting from the piece's current position through all hops.
+
+        e.g. [(2,3), (4,5), (6,7)] means: piece at (2,3) jumps to (4,5) then to (6,7)
+        """
+        if chain_so_far is None:
+            chain_so_far = [(row, col)]
+        if captured_so_far is None:
+            captured_so_far = set()
+
+        further_captures = self.captures(row, col)
+        # Filter out any landing squares that would require jumping the same piece twice
+        # (captured_so_far tracks which enemy squares are already removed)
+        valid_captures = []
+        for (lr, lc) in further_captures:
+            mid_r = (row + lr) // 2
+            mid_c = (col + lc) // 2
+            if (mid_r, mid_c) not in captured_so_far:
+                valid_captures.append((lr, lc))
+
+        if not valid_captures:
+            # No more jumps — this chain is complete
+            return [chain_so_far]
+
+        all_chains = []
+        for (lr, lc) in valid_captures:
+            mid_r = (row + lr) // 2
+            mid_c = (col + lc) // 2
+
+            # Simulate the hop
+            cr, cc, cp = self.make_move_no_validate(row, col, lr, lc)
+
+            new_captured = captured_so_far | {(cr, cc)}
+            sub_chains = self.get_jump_chains(lr, lc, chain_so_far + [(lr, lc)], new_captured)
+            all_chains.extend(sub_chains)
+
+            # Undo the hop
+            self.board[row][col] = self.board[lr][lc]
+            self.board[lr][lc] = "."
+            self.board[cr][cc] = cp
+
+            # Undo any promotion that happened
+            piece = self.board[row][col]
+            if piece == "B" and row != 0:
+                self.board[row][col] = "b"
+            elif piece == "C" and row != self.board_size - 1:
+                self.board[row][col] = "c"
+
+        return all_chains
+
+    def get_all_jump_chains(self, player):
+        """
+        Returns all complete capture chains for the given player as a dict:
+          { (start_row, start_col): [ [(r0,c0),(r1,c1),...], ... ] }
+        Only pieces that have captures are included.
+        """
+        chains = {}
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                square = self.board[row][col]
+                if square != "." and square.lower() == player:
+                    if self.captures(row, col):
+                        piece_chains = self.get_jump_chains(row, col)
+                        if piece_chains:
+                            chains[(row, col)] = piece_chains
+        return chains
+
     def check_winner(self):
-        '''
-        Checks for a winner by counting the remaining pieces for both the player and the AI, 
-        and also checking if either player has no valid moves left. If one player has no pieces or no valid moves, 
-        the other player is declared the winner.
-        @return: A string indicating the winner ("b" or "c") or None if there is no winner yet
-        '''
         player_pieces = sum(row.count("b") + row.count("B") for row in self.board)
         ai_pieces = sum(row.count("c") + row.count("C") for row in self.board)
 
