@@ -2,6 +2,14 @@ from copy import deepcopy
 
 
 def evaluate_board(game):
+    """
+    Evaluates the current game board and returns a numerical score based on
+    piece values, positions, edge bonuses, and available moves for each
+    player. Positive scores favor the AI ('c'), while negative scores favor
+    the opponent ('b').
+    @param game: The current game state to evaluate
+    @return: A numerical score representing the board evaluation from the AI's perspective
+    """
     score = 0
     size = len(game.board)
     for r in range(size):
@@ -94,6 +102,19 @@ def get_next_states(game, player):
 
 
 def minimax(game, depth, alpha, beta, maximizing_player):
+    """
+    Evaluates the best move for the current player using the minimax
+    algorithm with alpha-beta pruning. Returns a tuple containing the
+    evaluated score, the best move, and an optional chain, considering the
+    specified search depth and player type.
+    @param game: The current game state to evaluate
+    @param depth: The maximum search depth for the minimax algorithm
+    @param alpha: The best score that the maximizing player can guarantee at this level or above
+    @param beta: The best score that the minimizing player can guarantee at this level or above
+    @param maximizing_player: A boolean indicating whether the current player is the maximizing player (AI) or not
+    @return: A tuple (score, best_move, best_chain) where score is the evaluated score of the best move, best_move 
+    is the move that leads to the best score, and best_chain is the sequence of positions for multi-jumps if applicable
+    """
 
     winner = game.check_winner()
 

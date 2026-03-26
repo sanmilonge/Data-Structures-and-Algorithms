@@ -1,10 +1,10 @@
 checkerPieces = {
     "b": "●",   # player piece
     "B": "⬤",   # player king
-    "c": "○",   # AI piece/opponent
-    "C": "◯",   # AI king
+    "c": "○",   # AI piece
+    "C": "◯",   # AI king 
     ".": "·"    # empty square
-    }
+}
 
 
 def render_cell(cell): 
@@ -33,28 +33,35 @@ class Board:
         self.setup_pieces()
 
 
-    def print_board(self):
-        
-        print("    ", end="")
-        for col in range(self.board_size):
-            print(f"{col+1:^4}", end="")
+    def print_board(self, game, highlight=None):
+        """
+        Prints the board with row/col labels and Unicode pieces.
+        highlight: a (row, col) to mark with brackets e.g. [●] — used in history mode.
+        """
+        size = game.board_size
+        print()
+        print("    " + "   ".join(str(c + 1) for c in range(size)))
+        border = "   +" + "---+" * size
+        print(border)
+        for r in range(size):
+            row_str = f"{r + 1:<2} |"
+            for c in range(size):
+                symbol = render_cell(game.board[r][c])
+                if highlight == (r, c):
+                    row_str += f"[{symbol}]|"
+                else:
+                    row_str += f" {symbol} |"
+            print(row_str)
+            print(border)
         print()
 
-        border = "   +" + "---+" * self.board_size
-        print(border)
-
-        for row in range(self.board_size):
-            print(f"{row+1:<2} |", end="")
-
-            for col in range(self.board_size):
-                cell = self.board[row][col]
-                print(f" {render_cell(cell)} |", end="")
-
-            print()
-            print(border)
-
     def setup_pieces(self):
-        rows_of_pieces = (self.board_size // 2) - 1  # e.g. 3 for 8x8, 4 for 10x10, 5 for 12x12
+        """
+        Initializes the board by placing "c" and "b" pieces on alternating
+        squares in the starting rows for each player, based on the board size.
+        @return: None
+        """
+        rows_of_pieces = (self.board_size // 2) - 1 # Number of rows to fill with pieces for each player
 
         for row in range(self.board_size):
             for col in range(self.board_size):
@@ -66,8 +73,15 @@ class Board:
 
 
     def get_moves(self, row, col):
+        """
+        Returns a list of valid move positions for the piece at the specified
+        row and col on the board, based on the piece type and board boundaries.
+        @param row: The row index of the piece to check for moves
+        @param col: The column index of the piece to check for moves
+        @return: A list of tuples representing valid move coordinates for the piece at (row, col)
+        """
         player_moves = [(-1,-1), (-1,1,)]
-        ai_moves = [(1,1), (1,-1)]
+        ai_moves = [(1,1), (1,-1)] # Directions pieces can move in: player pieces move up the board (negative row direction), AI pieces move down (positive row direction)
         square = self.board[row][col]
         moves = []
         if square == ".":
@@ -75,7 +89,7 @@ class Board:
         else:
             if square == "b":
                 for dr, dc in player_moves:
-                    r = row + dr
+                    r = row + dr 
                     c = col + dc
                     if 0 <= r < self.board_size and 0 <= c < self.board_size and self.board[r][c] == ".":
                         moves.append((r,c))
@@ -94,6 +108,16 @@ class Board:
         return moves
     
     def captures(self, row, col):
+        """
+        Returns a list of valid capture moves for the piece at the specified row
+        and col on the board, based on the piece type and its allowed
+        directions. Each capture is represented as a tuple of landing
+        coordinates.
+        @param row: The row index of the piece to check for captures
+        @param col: The column index of the piece to check for captures
+        @return: A list of tuples, where each tuple is (landing_row, landing_col) representing a 
+        valid capture move for the piece at (row, col)
+        """
         player_moves = [(-1,-1), (-1,1,)]
         ai_moves = [(1,1), (1,-1)]
         square = self.board[row][col]
@@ -137,18 +161,30 @@ class Board:
                     captures.append((landing_row, landing_col))
         return captures
                 
-    def get_available_moves(self, row, col):
-        captures = self.captures(row, col)
-        if captures:
-            return captures
-        else:
-            return self.get_moves(row, col)
+    # def get_available_moves(self, row, col):
+    #     """
+    #     Returns a list of available moves for the piece at the specified row and
+    #     col. Prioritizes capture moves if available; otherwise, returns standard
+    #     moves.
+    #     @param row: The row index of the piece to check for moves
+    #     @param col: The column index of the piece to check for moves
+    #     @return: A list of tuples representing valid move coordinates for the piece at (row, col)
+    #     """
+    #     captures = self.captures(row, col)
+    #     if captures:
+    #         return captures
+    #     else:
+    #         return self.get_moves(row, col)
 
     def make_move(self, start_row, start_col, end_row, end_col):
         """
         Executes a single move or single capture hop on the board.
-        Does NOT enforce turn order or multi-jump chaining — callers handle that.
-        Returns True if successful, False if invalid.
+        Does not enforce turn order or multi-jump chaining — callers handle that.
+        @param start_row: The starting row index of the piece being moved
+        @param start_col: The starting column index of the piece being moved
+        @param end_row: The ending row index where the piece will land
+        @param end_col: The ending column index where the piece will land
+        @return: True if the move was successfully made, False if the move was invalid
         """
         piece = self.board[start_row][start_col]
 
@@ -168,13 +204,13 @@ class Board:
         self.board[end_row][end_col] = piece
         self.board[start_row][start_col] = "."
 
-        # Remove captured piece if this was a jump
-        if abs(end_row - start_row) == 2 and abs(end_col - start_col) == 2:
+        # Removes captured piece if this was a jump
+        if abs(end_row - start_row) == 2 and abs(end_col - start_col) == 2: 
             captured_row = (start_row + end_row) // 2
             captured_col = (start_col + end_col) // 2
             self.board[captured_row][captured_col] = "."
 
-        # Promotion — but don't promote mid-chain (piece keeps jumping as king from here)
+        # Promotion
         if piece == "b" and end_row == 0:
             self.board[end_row][end_col] = "B"
         elif piece == "c" and end_row == self.board_size - 1:
@@ -188,6 +224,12 @@ class Board:
         Used internally by get_all_jump_chains to simulate chains efficiently.
         Assumes the move is already known to be a valid capture hop.
         Returns the captured piece's position.
+        @param start_row: The starting row index of the piece being moved
+        @param start_col: The starting column index of the piece being moved
+        @param end_row: The ending row index where the piece will land
+        @param end_col: The ending column index where the piece will land
+        @return: A tuple (captured_row, captured_col, captured_piece) representing the position 
+        and type of the piece that was captured
         """
         piece = self.board[start_row][start_col]
         self.board[end_row][end_col] = piece
@@ -211,8 +253,13 @@ class Board:
         Recursively finds all complete capture chains starting from (row, col).
         Returns a list of chains, where each chain is a list of (row, col) positions
         starting from the piece's current position through all hops.
-
-        e.g. [(2,3), (4,5), (6,7)] means: piece at (2,3) jumps to (4,5) then to (6,7)
+        @param row: The starting row index of the piece to find chains for
+        @param col: The starting column index of the piece to find chains for
+        @param chain_so_far: Used internally to build the current chain during recursion
+        @param captured_so_far: Used internally to track which enemy pieces have been 
+        captured in the current chain to avoid re-capturing them
+        @return: A list of chains, where each chain is a list of (row, col) 
+        tuples representing the sequence of positions in that capture chain
         """
         if chain_so_far is None:
             chain_so_far = [(row, col)]
@@ -264,6 +311,9 @@ class Board:
         Returns all complete capture chains for the given player as a dict:
           { (start_row, start_col): [ [(r0,c0),(r1,c1),...], ... ] }
         Only pieces that have captures are included.
+        @param player: The player ("b" or "c") to find jump chains for
+        @return: A dictionary mapping piece positions to lists of capture chains, 
+        where each chain is a list of (row, col) tuples representing the sequence of positions in that capture chain
         """
         chains = {}
         for row in range(self.board_size):
@@ -277,6 +327,14 @@ class Board:
         return chains
 
     def check_winner(self):
+        """
+        Determines the winner of the game by checking if either player has no
+        remaining pieces or valid moves. Returns 'c' if the AI wins, 'b' if the
+        player wins, or None if there is no winner yet.
+        @return: 'c' if the AI wins, 'b' if the player wins, or None if there is no winner yet
+        @note: This method checks for both piece count and move availability to determine the winner, 
+        ensuring that a player who is blocked but still has pieces is also considered defeated.
+        """
         player_pieces = sum(row.count("b") + row.count("B") for row in self.board)
         ai_pieces = sum(row.count("c") + row.count("C") for row in self.board)
 
@@ -292,6 +350,13 @@ class Board:
             return None
 
     def get_all_moves(self, player):
+        """
+        Returns a dictionary mapping each of the current player's pieces to
+        their available moves. If forced captures are enabled and any capture
+        moves exist, only those capture moves are returned.
+        @param player: The player ("b" or "c") to get moves for
+        @return: A dictionary mapping piece positions to lists of valid move coordinates for that piece,
+        """
         all_moves = {}
         capture_moves = {}
 
@@ -316,6 +381,13 @@ class Board:
         return all_moves
     
     def has_capture(self, player):
+        """
+        Checks if the specified player has any available capture moves on the
+        board. Returns True if at least one capture is possible; otherwise,
+        returns False.
+        @param player: The player ("b" or "c") to check for available captures
+        @return: True if the player has at least one available capture move, False otherwise
+        """
         for row in range(self.board_size):
             for col in range(self.board_size):
                 square = self.board[row][col]

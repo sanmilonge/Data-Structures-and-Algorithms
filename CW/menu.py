@@ -2,6 +2,11 @@ import curses
 
 
 def menu(stdscr):
+    """
+    Displays an interactive menu using curses, allowing the user to select
+    between game modes, toggle the forced capture rule, or quit. Returns the
+    selected option and the current forced capture setting as a tuple.
+    """
 
     curses.curs_set(0)
 

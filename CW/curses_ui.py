@@ -5,8 +5,18 @@ from board import render_cell
 from ai import minimax
 
 
-def animate_ai_move(stdscr, game, start, end):
-
+def animate_move(stdscr, game, start, end):
+    """
+    Animates a move on the game board by alternating the display between
+    the start and end positions using draw_board, with brief pauses to
+    create a visual effect.
+    @param stdscr: The curses standard screen object to draw on
+    @param game: The current game state, used to render the board
+    @param start: A tuple (row, col) representing the starting position of the move
+    @param end: A tuple (row, col) representing the ending position of the move
+    @return: None
+    @note: This function does not actually update the game state; it only provides a visual animation of the move being made.
+    """
     sr, sc = start
     er, ec = end
 
@@ -22,7 +32,16 @@ def animate_ai_move(stdscr, game, start, end):
 
 
 def move_cursor(key, cursor, size):
-
+    """
+    Moves the cursor position within a grid based on the given key input,
+    ensuring the new position stays within the bounds defined by size.
+    Returns the updated (row, column) tuple.
+    @param key: The key input indicating the direction to move the cursor (e.g., curses.KEY_UP)
+    @param cursor: A tuple (row, col) representing the current position of the cursor
+    @param size: The size of the grid (e.g., board size) to enforce boundaries
+    @return: A tuple (row, col) representing the new position of the cursor after applying the movement 
+    based on the key input, constrained within the grid boundaries
+    """
     r, c = cursor
 
     if key == curses.KEY_UP and r > 0:
@@ -41,7 +60,31 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
                p1_name=None, p2_name=None, players_turn=True, history_mode=False,
                history_index=None, history_len=None, ai_mode=False,
                p1_captures=0, p2_captures=0, alert_msg=None):
-
+    """
+    Draws the game board and related UI elements in a curses window,
+    displaying player names, turn indicators, board state, selectable moves,
+    capture counts, timers, history mode, alerts, and footer instructions
+    based on the current game context. Replaces print_board method in Board for curses rendering.
+    @param stdscr: The curses standard screen object to draw on
+    @param game: The current game state, used to render the board
+    @param cursor: A tuple (row, col) representing the current position of the cursor for selection
+    @param selected: A tuple (row, col) representing the currently selected piece, or None if no piece is selected
+    @param moves: A list of tuples representing valid move positions for the selected piece, used for highlighting
+    @param ai_time: Float representing the time taken by the AI for its last move, displayed in the right panel
+    @param timers: Tuple (p1_time, p2_time) representing the remaining time for each player, displayed in the right panel
+    @param p1_name: String representing Player 1's name, displayed in the header and turn indicator
+    @param p2_name: String representing Player 2's name, displayed in the header and turn indicator
+    @param players_turn: Boolean indicating if it's currently Player 1's turn (True) or Player 2's turn (False), used for turn indicators
+    @param history_mode: Boolean indicating if the game is currently in history browsing mode, which changes the display and controls
+    @param history_index: Integer representing the current index in the move history being viewed in history mode, used for display
+    @param history_len: Integer representing the total length of the move history, used for display in history mode
+    @param ai_mode: Boolean indicating if the game is in AI mode, which may affect certain display elements and controls
+    @param p1_captures: Integer count of how many pieces Player 1 has captured, displayed below the board
+    @param p2_captures: Integer count of how many pieces Player 2 has captured, displayed below the board
+    @param alert_msg: String containing an alert message to display prominently (forced capture or multi-jump alerts)
+    @return: None
+    @note: This function is responsible for rendering the entire game interface based on the current state
+    """
     stdscr.clear()
     max_y, max_x = stdscr.getmaxyx()
     info_col = max_x - 22
@@ -49,7 +92,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
     size = game.board_size
     left = 10
 
-    # --- Header: names ---
+    # Player names
     name1 = p1_name or "Player 1"
     name2 = p2_name or "Player 2"
     header = f"{name1}  vs  {name2}"
@@ -63,7 +106,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
             turn_msg = f"{name2}'s turn"
         stdscr.addstr(0, info_col, turn_msg)
 
-    # column numbers
+    # Column numbers
     stdscr.addstr(2, left + 2, "   ".join(str(i + 1) for i in range(size)))
 
     border = "+---" * size + "+"
@@ -89,7 +132,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
                 attrs |= curses.A_REVERSE
 
             if selected == (r, c):
-                # Highlight selected piece: bold + reverse + underline for visibility
+                # Highlights selected piece
                 attrs |= curses.A_BOLD | curses.A_REVERSE | curses.A_UNDERLINE
 
             if (r, c) in moves:
@@ -108,7 +151,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
 
     stdscr.addstr(size * 2 + 3, left, border)
 
-    # --- Capture counts: P1 bottom-left, P2 top-right of board ---
+    # Capture counts
     board_bottom = size * 2 + 4
     piece_symbol_p1 = "●"
     piece_symbol_p2 = "○"
@@ -120,7 +163,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
     except curses.error:
         pass
 
-    # --- Right panel ---
+    # Right panel 
     if ai_time is not None:
         stdscr.addstr(2, info_col, f"AI time: {ai_time:.2f}s")
 
@@ -135,7 +178,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
         if history_index is not None and history_len is not None:
             stdscr.addstr(3, info_col, f"Move {history_index}/{history_len - 1}")
 
-    # --- Alert message (forced capture / multi-jump) ---
+    # Alert message (forced capture / multi-jump)
     if alert_msg and not history_mode:
         alert_y = max_y - 3
         try:
@@ -143,7 +186,7 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
         except curses.error:
             pass
 
-    # --- Footer instructions ---
+    # Instructions
     footer_y = max_y - 2
     if history_mode:
         footer = " u: undo  r: redo  Enter: confirm & resume "
@@ -161,7 +204,17 @@ def draw_board(stdscr, game, cursor, selected, moves, ai_time=None, timers=None,
 
 
 def prompt_name(stdscr, prompt):
-    """Simple name input using curses."""
+    """
+    Prompts the user for input using a curses window, displaying the given
+    prompt at a fixed position, and returns the entered name as a trimmed
+    string or None if empty.
+    @param stdscr: The curses standard screen object to draw on
+    @param prompt: The string message to display as a prompt for the user input
+    @return: The name entered by the user as a trimmed string, or None if the input was empty
+    @note: This function enables echoing and cursor visibility for user input, and restores them 
+    to their original state after input is received. The prompt is displayed at a fixed position 
+    on the screen, and the user can enter their name, which is then processed and returned.
+    """
     curses.echo()
     curses.curs_set(1)
     stdscr.clear()
@@ -177,7 +230,30 @@ def show_message(stdscr, game, cursor, selected, moves, message, ai_time=None,
                  timers=None, p1_name=None, p2_name=None, players_turn=True,
                  history_mode=False, history_index=None, history_len=None, ai_mode=False,
                  p1_captures=0, p2_captures=0):
-    """Draw the board and overlay a temporary message below the board."""
+    """
+    Displays a message on the game board using stdscr, after redrawing the
+    board with the current game state and related parameters. The message is
+    shown in bold at a position below the board, and the screen is refreshed
+    to update the display.
+    @param stdscr: The curses standard screen object to draw on
+    @param game: The current game state, used to render the board
+    @param cursor: A tuple (row, col) representing the current position of the cursor for selection
+    @param selected: A tuple (row, col) representing the currently selected piece, or None if no piece is selected
+    @param moves: A list of tuples representing valid move positions for the selected piece, used for highlighting
+    @param message: The string message to display prominently on the screen
+    @param ai_time: Float representing the time taken by the AI for its last move, displayed in the right panel
+    @param timers: Tuple (p1_time, p2_time) representing the remaining time for each player, displayed in the right panel
+    @param p1_name: String representing Player 1's name, displayed in the header and turn indicator
+    @param p2_name: String representing Player 2's name, displayed in the header and turn indicator
+    @param players_turn: Boolean indicating if it's currently Player 1's turn (True) or Player 2's turn (False), used for turn indicators
+    @param history_mode: Boolean indicating if the game is currently in history browsing mode, which changes the display and controls
+    @param history_index: Integer representing the current index in the move history being viewed in history mode, used for display
+    @param history_len: Integer representing the total length of the move history, used for display in history mode
+    @param ai_mode: Boolean indicating if the game is in AI mode, which may affect certain display elements and controls
+    @param p1_captures: Integer count of how many pieces Player 1 has captured, displayed below the board
+    @param p2_captures: Integer count of how many pieces Player 2 has captured, displayed below the board
+    @return: None
+    """
     draw_board(stdscr, game, cursor, selected, moves, ai_time, timers,
                p1_name, p2_name, players_turn, history_mode, history_index, history_len,
                ai_mode=ai_mode, p1_captures=p1_captures, p2_captures=p2_captures)
@@ -191,6 +267,20 @@ def show_message(stdscr, game, cursor, selected, moves, message, ai_time=None,
 
 def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
                     p1_name=None, p2_name=None):
+    """
+    Runs an interactive curses-based board game session, supporting human
+    and AI players, move history navigation, timers, and in-game alerts.
+    Handles user input, game state updates, and board rendering within a
+    terminal UI.
+    @param stdscr: The curses standard screen object to draw on
+    @param game: The initial game state object, which should have methods for making moves, checking for winners, and retrieving valid moves
+    @param ai_mode: Boolean indicating if the game should be played against an AI opponent (True) or another human player (False)
+    @param ai_depth: Integer representing the search depth for the AI's minimax algorithm, affecting its difficulty level
+    @param timer: Optional float representing the time limit in seconds for each player's turn; if None, no timer is used
+    @param p1_name: Optional string representing Player 1's name; if None, a default name will be used
+    @param p2_name: Optional string representing Player 2's name; if None, a default name or "AI" will be used based on ai_mode
+    @return: None
+    """
 
     curses.curs_set(0)
 
@@ -254,9 +344,9 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
 
         timers_display = (p1_time, p2_time) if timer else None
 
-        # --- History mode ---
+        # History mode
         if history_mode:
-            # Highlight the piece at the destination of the current history state
+            # Highlights the piece at the destination of the current history state
             # Index 0 (game start) has no moved_to, so nothing is highlighted
             history_highlight = history[history_cursor_index][2]
 
@@ -313,7 +403,7 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
                     time.sleep(1)
 
             elif key == 10:  # Enter — confirm and resume
-                # Truncate future history beyond confirmed point
+                # Truncates future history beyond confirmed point
                 history = history[:history_cursor_index + 1]
                 history_index = history_cursor_index
                 players_turn = history[history_index][1]
@@ -327,14 +417,14 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
 
             continue
 
-        # --- Normal play ---
-        # Compute alert for forced capture / multi-jump
+        # Normal play
+        # Computes alert for forced capture / multi-jump
         alert_msg = None
         current_player = "b" if players_turn else "c"
         current_name = name1 if players_turn else name2
         if not (ai_mode and not players_turn):
             if selected is not None:
-                # Check for multi-jump: piece just landed and still has captures
+                # Checks for multi-jump: piece just landed and still has captures
                 multi_jumps = game.captures(selected[0], selected[1])
                 if multi_jumps:
                     alert_msg = f"Multi-jump available! You must continue capturing."
@@ -377,12 +467,12 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
             if move is None or chain is None:
                 break
 
-            # Execute and animate each hop in the chain
+            # Executes and animates each hop in the chain
             for i in range(len(chain) - 1):
                 sr, sc = chain[i]
                 er, ec = chain[i + 1]
 
-                animate_ai_move(stdscr, game, (sr, sc), (er, ec))
+                animate_move(stdscr, game, (sr, sc), (er, ec))
 
                 before_p1, _ = count_pieces(game.board)
                 game.make_move(sr, sc, er, ec)
@@ -391,7 +481,7 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
 
             final_pos = (chain[-1][0], chain[-1][1])
 
-            # Save full chain as one history entry (start -> final)
+            # Saves full chain as one history entry (start -> final)
             history = history[:history_index + 1]
             history.append((deepcopy(game.board), True, final_pos))
             history_index = len(history) - 1
@@ -443,23 +533,23 @@ def run_curses_game(stdscr, game, ai_mode=False, ai_depth=2, timer=None,
                     sr, sc = selected
                     is_capture = abs(r - sr) == 2
 
-                    animate_ai_move(stdscr, game, (sr, sc), (r, c))
+                    animate_move(stdscr, game, (sr, sc), (r, c))
 
                     _, before_p2 = count_pieces(game.board)
                     game.make_move(sr, sc, r, c)
                     _, after_p2 = count_pieces(game.board)
                     p1_captures += max(0, before_p2 - after_p2)
 
-                    # Check for multi-jump: if this was a capture and the piece
+                    # Checks for multi-jump: if this was a capture and the piece
                     # can still capture, lock it in place — don't end the turn yet
                     further_captures = game.captures(r, c) if is_capture else []
 
                     if further_captures:
-                        # Stay in same turn, lock piece to (r, c)
+                        # Stays in same turn, lock piece to (r, c)
                         selected = (r, c)
                         moves = further_captures
                         cursor = (r, c)
-                        # Save intermediate hop to history so undo works per-hop
+                        # Saves intermediate hop to history so undo works per-hop
                         history = history[:history_index + 1]
                         history.append((deepcopy(game.board), players_turn, (r, c)))
                         history_index = len(history) - 1
