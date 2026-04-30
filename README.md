@@ -55,12 +55,19 @@ checkers/
 ├── menu.py           # Curses interactive main menu
 ├── main.py           # Entry point for curses interface
 ├── main_plain.py     # Entry point for plain terminal interface
+├── setup_and_run.bat # Script to install requirements and run program
 └── README.md
+
 ```
 
 ---
 
 ## ● How to Run
+> The game can be run with the script:
+```bash
+setup_and_run.bat
+```
+# OR
 
 ### Curses Interface (recommended)
 
